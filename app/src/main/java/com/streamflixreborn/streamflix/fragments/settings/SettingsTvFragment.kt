@@ -58,6 +58,7 @@ import com.streamflixreborn.streamflix.providers.ProviderPortalUrl
 import com.streamflixreborn.streamflix.providers.MStreamProvider
 import com.streamflixreborn.streamflix.providers.SerienStreamProvider
 import com.streamflixreborn.streamflix.providers.StreamingCommunityProvider
+import com.streamflixreborn.streamflix.providers.TmdbProvider
 import com.streamflixreborn.streamflix.utils.BypassWebSocketEndpointHelper
 import com.streamflixreborn.streamflix.utils.AppLanguageManager
 import com.streamflixreborn.streamflix.utils.DnsResolver
@@ -152,7 +153,7 @@ class SettingsTvFragment : LeanbackPreferenceFragmentCompat() {
         
         val allProvidersToBackup = Provider.providers.keys.toMutableList().apply {
             listOf("it", "en", "es", "de", "fr").forEach { lang ->
-                // IdlixProvider is the only provider
+                add(TmdbProvider(lang))
             }
         }
 
