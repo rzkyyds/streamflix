@@ -9,7 +9,9 @@ import com.streamflixreborn.streamflix.StreamFlixApp
 import com.streamflixreborn.streamflix.BuildConfig
 import com.streamflixreborn.streamflix.R
 import com.streamflixreborn.streamflix.fragments.player.settings.PlayerSettingsView
+import com.streamflixreborn.streamflix.providers.IdlixProvider
 import com.streamflixreborn.streamflix.providers.Provider
+import com.streamflixreborn.streamflix.providers.IdlixProvider
 import com.streamflixreborn.streamflix.providers.Provider.Companion.providers
 import com.streamflixreborn.streamflix.providers.TmdbProvider
 import androidx.core.content.edit
@@ -68,7 +70,7 @@ object UserPreferences {
                 val lang = providerName.substringAfter("TMDb (").substringBefore(")")
                 return TmdbProvider(lang)
             }
-            return Provider.providers.keys.find { it.name == providerName }
+            return Provider.providers.keys.find { it.name == providerName } ?: IdlixProvider
         }
         set(value) {
             // CRITICO: Resetta l'istanza del database prima di cambiare provider

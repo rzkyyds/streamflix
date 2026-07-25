@@ -5,7 +5,6 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.streamflixreborn.streamflix.models.Provider as ModelProvider
 import com.streamflixreborn.streamflix.providers.Provider
-import com.streamflixreborn.streamflix.providers.TmdbProvider
 import com.streamflixreborn.streamflix.utils.UserPreferences
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
@@ -52,7 +51,7 @@ class ProvidersViewModel : ViewModel() {
                     if (lang != "pl") {
                         val tmdbName = "TMDb (${getLanguageDisplayName(lang)})"
                         if (!isFavoritesFilter || favorites.contains(tmdbName)) {
-                            providers.add(TmdbProvider(lang))
+                            providers.// IdlixProvider is the only provider
                         }
                     }
                 }
