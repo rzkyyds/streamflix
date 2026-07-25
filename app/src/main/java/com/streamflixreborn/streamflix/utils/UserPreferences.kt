@@ -11,7 +11,6 @@ import com.streamflixreborn.streamflix.R
 import com.streamflixreborn.streamflix.fragments.player.settings.PlayerSettingsView
 import com.streamflixreborn.streamflix.providers.IdlixProvider
 import com.streamflixreborn.streamflix.providers.Provider
-import com.streamflixreborn.streamflix.providers.IdlixProvider
 import com.streamflixreborn.streamflix.providers.Provider.Companion.providers
 import com.streamflixreborn.streamflix.providers.TmdbProvider
 import androidx.core.content.edit
