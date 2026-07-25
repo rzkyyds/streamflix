@@ -15,7 +15,6 @@ import retrofit2.converter.gson.GsonConverterFactory
 import retrofit2.http.GET
 import retrofit2.http.Path
 import retrofit2.http.Query
-import java.util.Calendar
 import java.util.concurrent.TimeUnit
 
 object IdlixProvider : Provider {
@@ -43,72 +42,41 @@ object IdlixProvider : Provider {
         val link: ApiLink?
     )
 
-    data class ApiLink(
-        val endpoint: String?,
-        val url: String?,
-        val thumbnail: String?
-    )
+    data class ApiLink(val endpoint: String?, val url: String?, val thumbnail: String?)
 
     data class ApiSearchResponse(val success: Boolean, val data: List<ApiItem>?)
 
     data class ApiMovieDetail(
-        val title: String?,
-        val year: Int?,
-        val type: String?,
-        val runtime: String?,
-        val runtimeMinutes: Int?,
-        val overview: String?,
-        val poster: String?,
-        val backdrop: String?,
-        val genres: List<ApiGenre>?,
-        val country: String?,
-        val language: String?,
-        val director: ApiDirector?,
-        val cast: List<ApiCast>?,
-        val trailer: String?,
-        val rating: String?,
-        val quality: String?,
-        val watchUrl: String?,
-        val seasons: List<ApiSeason>?
+        val title: String?, val year: Int?, val type: String?,
+        val runtime: String?, val runtimeMinutes: Int?,
+        val overview: String?, val poster: String?, val backdrop: String?,
+        val genres: List<ApiGenre>?, val country: String?,
+        val language: String?, val director: ApiDirector?,
+        val cast: List<ApiCast>?, val trailer: String?,
+        val rating: String?, val quality: String?, val watchUrl: String?,
+        val seasons: List<ApiSeason>?, val slug: String?
     )
 
     data class ApiDetailResponse(val success: Boolean, val data: ApiMovieDetail?)
 
     data class ApiGenre(val name: String?)
-
     data class ApiDirector(val name: String?)
-
     data class ApiCast(val name: String?, val character: String?, val image: String?)
 
     data class ApiSeason(
-        val name: String?,
-        val seasonNumber: Int?,
-        val episodeCount: Int?,
+        val name: String?, val seasonNumber: Int?, val episodeCount: Int?,
         val episodes: List<ApiEpisode>?
     )
 
-    data class ApiEpisode(
-        val episodeNumber: Int?,
-        val title: String?,
-        val overview: String?
-    )
+    data class ApiEpisode(val episodeNumber: Int?, val title: String?, val overview: String?)
 
     data class ApiStreamData(
-        val slug: String?,
-        val streamUrl: String?,
-        val subtitles: List<ApiSubtitle>?,
-        val videoId: String?,
-        val title: String?,
-        val maxHeight: Int?
+        val slug: String?, val streamUrl: String?, val subtitles: List<ApiSubtitle>?,
+        val videoId: String?, val title: String?, val maxHeight: Int?
     )
 
     data class ApiStreamResponse(val success: Boolean, val data: ApiStreamData?)
-
     data class ApiSubtitle(val lang: String?, val label: String?, val url: String?)
-
-    data class ApiGenreListResponse(val success: Boolean, val data: List<ApiGenreItem>?)
-
-    data class ApiGenreItem(val name: String?, val slug: String?)
 
     // ─── Helper Functions ────────────────────────────────────────────────
 
@@ -118,7 +86,7 @@ object IdlixProvider : Provider {
         quality = quality,
         rating = rating,
         poster = poster,
-        released = year?.let { "$it-01-01" }
+        released = year?.let { "${it}-01-01" }
     )
 
     private fun ApiItem.toTvShow() = TvShow(
@@ -129,63 +97,29 @@ object IdlixProvider : Provider {
         poster = poster
     )
 
-    private fun ApiMovieDetail.toMovie(): Movie {
-        val genreList = genres?.mapNotNull { it.name?.let { n -> Genre(id = n.lowercase(), name = n) } } ?: listOf()
-        val directorList = director?.let { listOf(People(id = it.name ?: "", name = it.name ?: "")) } ?: listOf()
-        val castList = cast?.mapNotNull { People(id = it.name ?: "", name = it.name ?: "") } ?: listOf()
-
-        return Movie(
-            id = "",
-            title = title ?: "",
-            overview = overview,
-            released = year?.let { "$it-01-01" },
-            runtime = runtimeMinutes,
-            trailer = trailer,
-            quality = quality,
-            rating = rating?.toDoubleOrNull(),
-            poster = poster,
-            banner = backdrop,
-            genres = genreList,
-            directors = directorList,
-            cast = castList
-        )
-    }
-
     // ─── Provider Implementation ─────────────────────────────────────────
 
     override suspend fun getHome(): List<Category> {
         val categories = mutableListOf<Category>()
 
-        // Trending Movies
         try {
             val trending = service.getTrending()
             val movies = trending.data?.map { it.toMovie() }?.take(15) ?: listOf()
-            if (movies.isNotEmpty()) {
-                categories.add(Category(name = "Trending Movies (IDLIX)", list = movies))
-            }
+            if (movies.isNotEmpty()) categories.add(Category(name = "Trending", list = movies))
         } catch (_: Exception) {}
 
-        // Cinemaxxi (Recent)
         try {
             val recent = service.getCinemaxxi()
-            val items = recent.data?.map { item ->
-                if (item.type == "series") item.toTvShow() else item.toMovie()
-            }?.take(15) ?: listOf()
-            if (items.isNotEmpty()) {
-                categories.add(Category(name = "Recently Added", list = items))
-            }
+            val items = recent.data?.map { if (it.type == "series") it.toTvShow() else it.toMovie() }?.take(15) ?: listOf()
+            if (items.isNotEmpty()) categories.add(Category(name = "Recently Added", list = items))
         } catch (_: Exception) {}
 
-        // Featured
         try {
             val featured = service.getFeatured()
-            val featuredMovies = featured.data
+            val featuredItems = featured.data
                 ?.filter { it.slug != null && it.slug != "undefined" }
-                ?.take(10)
-                ?.map { it.toMovie() } ?: listOf()
-            if (featuredMovies.isNotEmpty()) {
-                categories.add(Category(name = Category.FEATURED, list = featuredMovies))
-            }
+                ?.take(10)?.map { it.toMovie() } ?: listOf()
+            if (featuredItems.isNotEmpty()) categories.add(Category(name = Category.FEATURED, list = featuredItems))
         } catch (_: Exception) {}
 
         return categories
@@ -194,92 +128,106 @@ object IdlixProvider : Provider {
     override suspend fun search(query: String, page: Int): List<AppAdapter.Item> {
         if (query.isEmpty()) return listOf()
         val response = service.search(query, page)
-        return response.data?.map { item ->
-            if (item.type == "series") item.toTvShow() else item.toMovie()
-        } ?: listOf()
+        return response.data?.map { if (it.type == "series") it.toTvShow() else it.toMovie() } ?: listOf()
     }
 
     override suspend fun getMovies(page: Int): List<Movie> {
-        val response = service.getTrending()
-        return response.data?.filter { it.type == "movie" }?.map { it.toMovie() } ?: listOf()
+        return service.getTrending().data?.filter { it.type == "movie" }?.map { it.toMovie() } ?: listOf()
     }
 
     override suspend fun getTvShows(page: Int): List<TvShow> {
-        val response = service.getTrending()
-        return response.data?.filter { it.type == "series" }?.map { it.toTvShow() } ?: listOf()
+        return service.getTrending().data?.filter { it.type == "series" }?.map { it.toTvShow() } ?: listOf()
     }
 
-    override suspend fun getMovie(id: String): Movie {
-        val detail = service.getMovie(id)
-        return detail.data?.toMovie() ?: throw Exception("Movie not found")
+    override suspend fun getMovie(slug: String): Movie {
+        val detail = service.getMovie(slug)
+        val d = detail.data ?: throw Exception("Movie not found")
+        val genreList = d.genres?.mapNotNull { it.name?.let { n -> Genre(id = n.lowercase(), name = n) } } ?: listOf()
+        val castList = d.cast?.mapNotNull { People(id = it.name ?: "", name = it.name ?: "") } ?: listOf()
+        return Movie(
+            id = d.slug ?: slug,
+            title = d.title ?: "",
+            overview = d.overview,
+            released = d.year?.let { "${it}-01-01" },
+            runtime = d.runtimeMinutes,
+            trailer = d.trailer,
+            quality = d.quality,
+            rating = d.rating?.toDoubleOrNull(),
+            poster = d.poster,
+            banner = d.backdrop,
+            genres = genreList,
+            cast = castList,
+            providerName = name
+        )
     }
 
-    override suspend fun getTvShow(id: String): TvShow {
-        val detail = service.getSeries(id)
-        return detail.data?.let { d ->
-            val seasons = d.seasons?.mapIndexed { idx, s ->
-                Season(
-                    id = "${id}_s${s.seasonNumber ?: idx}",
-                    number = s.seasonNumber ?: (idx + 1),
-                    title = s.name ?: "Season ${s.seasonNumber ?: idx + 1}",
-                    episodes = s.episodes?.map { e ->
-                        Episode(
-                            id = "${id}_s${s.seasonNumber}_e${e.episodeNumber}",
-                            number = e.episodeNumber ?: 1,
-                            title = e.title
-                        )
-                    } ?: listOf()
-                )
-            } ?: listOf()
-
-            TvShow(
-                id = id,
-                title = d.title ?: "",
-                overview = d.overview,
-                released = d.year?.let { "$it-01-01" },
-                runtime = d.runtimeMinutes,
-                trailer = d.trailer,
-                quality = d.quality,
-                rating = d.rating?.toDoubleOrNull(),
-                poster = d.poster,
-                banner = d.backdrop,
-                seasons = seasons,
-                genres = d.genres?.mapNotNull { it.name?.let { n -> Genre(id = n.lowercase(), name = n) } } ?: listOf(),
-                cast = d.cast?.mapNotNull { People(id = it.name ?: "", name = it.name ?: "") } ?: listOf()
+    override suspend fun getTvShow(slug: String): TvShow {
+        val detail = service.getSeries(slug)
+        val d = detail.data ?: throw Exception("TV Show not found")
+        val seasons = d.seasons?.mapIndexed { idx, s ->
+            Season(
+                id = "${slug}_s${s.seasonNumber ?: idx}",
+                number = s.seasonNumber ?: (idx + 1),
+                title = s.name ?: "Season ${s.seasonNumber ?: idx + 1}",
+                episodes = s.episodes?.map { e ->
+                    Episode(
+                        id = "${slug}_s${s.seasonNumber}_e${e.episodeNumber}",
+                        number = e.episodeNumber ?: 1,
+                        title = e.title
+                    )
+                } ?: listOf()
             )
-        } ?: throw Exception("TV Show not found")
+        } ?: listOf()
+        val genreList = d.genres?.mapNotNull { it.name?.let { n -> Genre(id = n.lowercase(), name = n) } } ?: listOf()
+        val castList = d.cast?.mapNotNull { People(id = it.name ?: "", name = it.name ?: "") } ?: listOf()
+        return TvShow(
+            id = d.slug ?: slug,
+            title = d.title ?: "",
+            overview = d.overview,
+            released = d.year?.let { "${it}-01-01" },
+            runtime = d.runtimeMinutes,
+            trailer = d.trailer,
+            quality = d.quality,
+            rating = d.rating?.toDoubleOrNull(),
+            poster = d.poster,
+            banner = d.backdrop,
+            seasons = seasons,
+            genres = genreList,
+            cast = castList,
+            providerName = name
+        )
     }
 
-    override suspend fun getEpisodesBySeason(seasonId: String): List<Episode> {
-        // IDLIX API doesn't support this directly; return empty
-        return listOf()
-    }
+    override suspend fun getEpisodesBySeason(seasonId: String): List<Episode> = listOf()
 
-    override suspend fun getGenre(id: String, page: Int): Genre {
-        // Return empty genre
-        return Genre(id = id, name = id, shows = listOf())
-    }
+    override suspend fun getGenre(id: String, page: Int): Genre = Genre(id = id, name = id, shows = listOf())
 
-    override suspend fun getPeople(id: String, page: Int): People {
-        return People(id = id, name = id, filmography = listOf())
-    }
+    override suspend fun getPeople(id: String, page: Int): People = People(id = id, name = id, filmography = listOf())
 
     override suspend fun getServers(id: String, videoType: Video.Type): List<Video.Server> {
-        return listOf(Video.Server(id = "idlix-direct", name = "IDLIX Stream"))
+        val serverId = when (videoType) {
+            is Video.Type.Movie -> "movie:$id"
+            is Video.Type.Episode -> {
+                val tvShow = videoType.tvShow
+                "episode:${tvShow.id}/${videoType.season.number}/${videoType.number}"
+            }
+            else -> throw Exception("Unsupported video type")
+        }
+        return listOf(Video.Server(id = serverId, name = "IDLIX Stream"))
     }
 
     override suspend fun getVideo(server: Video.Server): Video {
-        // Parse path: "movie/slug" or "series/slug/season/s/episode/e"
-        val parts = server.id.split("/")
-        val streamResponse = when {
-            parts.size >= 2 && parts[0] == "movie" -> service.getMovieStream(parts[1])
-            parts.size >= 6 && parts[0] == "series" -> {
-                val slug = parts[1]
-                val season = parts[3].toIntOrNull() ?: 1
-                val episode = parts[5].toIntOrNull() ?: 1
-                service.getEpisodeStream(slug, season, episode)
+        val parts = server.id.split(":", limit = 2)
+        if (parts.size < 2) throw Exception("Invalid server ID")
+
+        val streamResponse = when (parts[0]) {
+            "movie" -> service.getMovieStream(parts[1])
+            "episode" -> {
+                val segs = parts[1].split("/")
+                if (segs.size < 3) throw Exception("Invalid episode format")
+                service.getEpisodeStream(segs[0], segs[1].toIntOrNull() ?: 1, segs[2].toIntOrNull() ?: 1)
             }
-            else -> throw Exception("Invalid stream ID format")
+            else -> throw Exception("Unknown stream type: ${parts[0]}")
         }
 
         val data = streamResponse.data
@@ -302,13 +250,11 @@ object IdlixProvider : Provider {
                     .readTimeout(30, TimeUnit.SECONDS)
                     .connectTimeout(30, TimeUnit.SECONDS)
                     .build()
-
                 val retrofit = Retrofit.Builder()
                     .baseUrl(BASE_URL)
                     .addConverterFactory(GsonConverterFactory.create())
                     .client(client)
                     .build()
-
                 return retrofit.create(IdlixService::class.java)
             }
         }
